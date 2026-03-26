@@ -1,0 +1,11 @@
+InlayHints:
+  Enabled: No
+  ParameterNames: No
+  DeducedTypes: No
+
+Completion:
+  AllScopes: No
+  HeaderInsertion: Never
+
+CompileFlags:
+  Add: [-Iinclude]
