@@ -169,13 +169,11 @@ void keyfunc(RGFW_window *win, RGFW_key key, RGFW_keymod keymod, RGFW_bool repea
 dothething:
 	switch (menu->v[i].tag) {
 	case KEYTAG_RUN: {
-		char arg3[4096];
+		char *arg3 = make(char, menu->v[i].u.cmd.len + 1, &g_arena);
 		char *argv[4] = {"sh", "-c", arg3, 0};
 		memcpy(arg3, menu->v[i].u.cmd.v, menu->v[i].u.cmd.len);
 		arg3[menu->v[i].u.cmd.len] = '\0';
 		RGFW_window_close(win);
-		hb_font_destroy(font);
-		arena_destroy(&g_arena);
 		execvp(argv[0], argv);
 		perror("execvp");
 		_exit(127);
