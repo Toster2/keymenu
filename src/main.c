@@ -141,11 +141,25 @@ void redraw(RGFW_window *win, Menu *menu)
 	RGFW_surface_free(surface);
 }
 
+Byte char_from_key(RGFW_key key, RGFW_keymod keymod)
+{
+	Byte ch = key;
+	if (keymod & RGFW_modShift) {
+		if ('a' <= ch && ch <= 'z') {
+			ch &= ~0xA0;
+		}
+	}
+	if (keymod & RGFW_modControl) {
+		ch |= 0x80;
+	}
+	return ch;
+}
+
 void keyfunc(RGFW_window *win, RGFW_key key, RGFW_keymod keymod, RGFW_bool repeat, RGFW_bool pressed)
 {
 	int i;
 	if (!pressed || key > 127 || menu == 0) return;
-	Byte ch = key | ((keymod & RGFW_modControl) << 5); // key | 0x80 or key
+	Byte ch = char_from_key(key, keymod);
 	for (i = 0; i < menu->len; i++) {
 		if (menu->v[i].key == ch) {
 			goto dothething;
