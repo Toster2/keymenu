@@ -401,7 +401,7 @@ Menu *parse_config(Str fname, jmp_buf *jmpbuf, Arena *arena)
 		assign_cfg_option(&p, option, value);
 	}
 
-	p_menu(*menu->next, 0);
+	// p_menu(*menu->next, 0);
 
 	return menu;
 }

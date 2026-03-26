@@ -192,7 +192,7 @@ void help(char *argv0)
 	       "usage: %s [OPTIONS] <which_menu>\n\n"
 	       "options:\n"
 	       "  -c, --config <FILE> : use a different config file, default is '$HOME/.config/keymenu/keymenu.conf'\n"
-	       "  -l, --list          : list all available menus"
+	       "  -l, --list          : list all available menus\n"
 	       "  -h, --help          : print this help and exit\n"
 	       "  -V, --version       : print version information and exit\n",
 	       argv0);
