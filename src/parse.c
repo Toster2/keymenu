@@ -16,6 +16,7 @@ typedef struct Keyentry Keyentry;
 typedef struct Menu Menu;
 struct Menu {
 	Str desc;
+	Menu *parent;
 	Menu *next;
 	Keyentry *v;
 	Size len;
@@ -293,6 +294,7 @@ Menu *parse_menu(Str s, I32 indent, Parser *p, Str *therest)
 			k.tag = KEYTAG_MENU;
 			k.u.menu = *parse_menu(c.tail, line_indent, p, &c.tail);
 			k.u.menu.desc = desc;
+			k.u.menu.parent = menu;
 		} else {
 			parse_error(p, 0, "expected 'menu' or 'run', got '%.*s'", FMT(action));
 		}
@@ -391,6 +393,7 @@ Menu *parse_config(Str fname, jmp_buf *jmpbuf, Arena *arena)
 			if (trim(lcut.tail).len) parse_error(&p, "the syntax for declaring menus is menu <description>", "too many arguments to menu");
 			if (lcut.head.len == 0) parse_error(&p, "the syntax for declaring menus is menu <description>", "missing menu description");
 			Menu *n = parse_menu(c.tail, 0, &p, &c.tail);
+			n->parent = 0;
 			n->desc = lcut.head;
 			n->next = menu;
 			menu = n;

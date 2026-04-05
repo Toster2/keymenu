@@ -154,6 +154,17 @@ void keyfunc(RGFW_window *win, RGFW_key key, RGFW_keymod keymod, RGFW_bool repea
 	ArrayStr xs = {0};
 	int i;
 	if (!pressed || key > 127 || menu == 0) return;
+	if (key == RGFW_backSpace) {
+		if (menu->parent == 0) return;
+		menu = menu->parent;
+		for (I32 i = 0; i < menu->len; i++) {
+			arrstr_append(&xs, str_from_keyentry(menu->v[i], arena), arena);
+		}
+		render(bitmap, xs, &ws, font, arena);
+		RGFW_window_resize(win, ws.width, ws.height);
+		blit(win, ws);
+		return;
+	}
 	Byte ch = char_from_key(key, keymod);
 	for (i = 0; i < menu->len; i++) {
 		if (menu->v[i].key == ch) {
