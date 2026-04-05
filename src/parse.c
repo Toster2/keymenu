@@ -57,6 +57,16 @@ void init_cfg(void)
 
 static ArrayStr error_message = {0};
 
+void appendf(ArrayStr *xs, Arena *a, char *fmt, ...)
+{
+	char buf[4096];
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(buf, 4096, fmt, ap);
+	arrstr_append(xs, str_copy_cstr(buf, a), a);
+	va_end(ap);
+}
+
 void parse_error(Parser *p, char *help, char *fmt, ...)
 {
 	char buf[4096];
@@ -65,21 +75,16 @@ void parse_error(Parser *p, char *help, char *fmt, ...)
 	int n = snprintf(buf, 4096, "error: ");
 	vsnprintf(buf + n, 4096, fmt, ap);
 	arrstr_append(&error_message, str_copy_cstr(buf, p->arena), p->arena);
-	snprintf(buf, 4096, "in file %.*s on line %d:", FMT(p->fname), p->lineno);
-	arrstr_append(&error_message, str_copy_cstr(buf, p->arena), p->arena);
-	snprintf(buf, 4096, "   |");
-	arrstr_append(&error_message, str_copy_cstr(buf, p->arena), p->arena);
-	snprintf(buf, 4096, "%3d|    %.*s", p->lineno, FMT(p->line));
-	arrstr_append(&error_message, str_copy_cstr(buf, p->arena), p->arena);
-	snprintf(buf, 4096, "   |");
-	arrstr_append(&error_message, str_copy_cstr(buf, p->arena), p->arena);
+	appendf(&error_message, p->arena, "in file %.*s on line %d:", FMT(p->fname), p->lineno);
+	appendf(&error_message, p->arena, "   |");
+	appendf(&error_message, p->arena, "%3d|    %.*s", p->lineno, FMT(p->line));
+	appendf(&error_message, p->arena, "   |");
 	if (help) {
-		snprintf(buf, 4096, "help: %s", help);
-		arrstr_append(&error_message, str_copy_cstr(buf, p->arena), p->arena);
+		appendf(&error_message, p->arena, "help: %s", help);
 	}
 	va_end(ap);
 	for (int i = 0; i < error_message.len; i++) {
-		printf("%.*s\n", FMT(error_message.v[i]));
+		fprintf(stderr, "%.*s\n", FMT(error_message.v[i]));
 	}
 	longjmp(*p->jmpbuf, 1);
 	exit(1);
@@ -245,9 +250,9 @@ Byte parse_key(Parser *p, char a, char b)
 	if (a != '^' && b != '^') {
 		parse_error(p, "valid keys are for example 'a', '(', '^n'", "expected '^<key>' or '<key>^' (Ctrl), got '%c%c'", a, b);
 	} else if (a == '^') {
-		return b | 0x80;
+		return b | CTRL_BIT;
 	} else if (b == '^') {
-		return a | 0x80;
+		return a | CTRL_BIT;
 	}
 	parse_error(p, 0, "unreachable");
 	return 0;
@@ -305,23 +310,14 @@ Menu *parse_menu(Str s, I32 indent, Parser *p, Str *therest)
 	return menu;
 }
 
-void p_space(int n)
-{
-	for (int i = 0; i < n; i++) {
-		putchar(' ');
-	}
-}
-
 void p_menu(Menu menu, int n)
 {
 	printf("menu '%.*s'\n", FMT(menu.desc));
 	n += 4;
-	p_space(n);
-	printf("len: '%ld'\n", menu.len);
+	printf("%*clen: '%ld'\n", n, ' ', menu.len);
 	for (int i = 0; i < menu.len; i++) {
-		p_space(n);
-		if (menu.v[i].key & 0x80) putchar('^');
-		printf("%c = ", menu.v[i].key & ~0x80);
+		if (menu.v[i].key & CTRL_BIT) putchar('^');
+		printf("%*c%c = ", n, ' ', menu.v[i].key & ~CTRL_BIT);
 		switch (menu.v[i].tag) {
 		case KEYTAG_RUN:
 			printf("run '%.*s' '%.*s'\n", FMT(menu.v[i].desc), FMT(menu.v[i].u.cmd));

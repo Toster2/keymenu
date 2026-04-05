@@ -11,6 +11,8 @@
 
 #include "base.h"
 
+#define CTRL_BIT (0x80)
+
 typedef struct {
 	U8 r, g, b, a;
 } Color;

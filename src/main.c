@@ -3,10 +3,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "base.h"
+#include "common.h"
 #define OPTPARSE_IMPLEMENTATION
 #include "optparse.h"
-
 Arena g_arena;
 #define RGFW_ALLOC(size) arena_alloc(&g_arena, size, alignof(max_align_t), 1, ArenaDontAbort)
 #define RGFW_FREE(size)
@@ -14,9 +13,12 @@ Arena g_arena;
 #include "RGFW.h"
 
 #include "base.c"
-#include "common.h"
 #include "parse.c"
 #include "render.c"
+
+static Menu *menu = 0;
+static hb_font_t *font;
+static Bitmap bitmap;
 
 void *ft_alloc(FT_Memory mem, long size)
 {
@@ -39,18 +41,6 @@ void *ft_realloc(FT_Memory mem, long cur_size, long new_size, void *block)
 	}
 	void *p = arena_alloc(a, new_size, alignof(max_align_t), 1, ArenaDontAbort | ArenaDontZero);
 	return memcpy(p, block, cur_size);
-}
-
-#define MAX_GLYPHS 4096
-Arena *setup_allocator(FT_Memory ft_allocator)
-{
-	Arena *a = &g_arena;
-	g_arena = arena_create(GB(1));
-	ft_allocator->user = a;
-	ft_allocator->alloc = ft_alloc;
-	ft_allocator->free = ft_free;
-	ft_allocator->realloc = ft_realloc;
-	return a;
 }
 
 void arrstr_append(ArrayStr *xs, Str s, Arena *a)
@@ -83,47 +73,43 @@ Str str_null_terminate(Str s, Arena *perm)
 	return str_concat(s, (Str){"\0", 1}, perm);
 }
 
-hb_font_t *init_font(FT_Memory ft_allocator)
+void init_font(Arena *a)
 {
 	FT_Library ft;
 	FT_Face face;
-	FT_Error fterror;
-	fterror = FT_New_Library(ft_allocator, &ft);
-	if (fterror)
-		exit(1);
+	FT_Memory ft_allocator = new(struct FT_MemoryRec_, a);
+	ft_allocator->user = a;
+	ft_allocator->alloc = ft_alloc;
+	ft_allocator->free = ft_free;
+	ft_allocator->realloc = ft_realloc;
+	if (FT_New_Library(ft_allocator, &ft)) exit(1);
 	FT_Add_Default_Modules(ft);
-	fterror = FT_New_Face(ft, str_null_terminate(cfg.font, &g_arena).v, 0, &face);
-	if (fterror)
-		printf("cant load font file '%.*s' saar\n", FMT(cfg.font)), exit(1);
+	if (FT_New_Face(ft, str_null_terminate(cfg.font, &g_arena).v, 0, &face)) {
+		printf("error: cant load font file '%.*s'\n", FMT(cfg.font));
+		exit(1);
+	}
 	if (FT_Set_Pixel_Sizes(face, 0, cfg.fontsize)) exit(1);
-	hb_font_t *font = hb_ft_font_create_referenced(face);
+	font = hb_ft_font_create_referenced(face);
 	hb_ft_font_set_funcs(font);
-	return font;
 }
 
 Str str_from_keyentry(Keyentry k, Arena *a)
 {
 	Str s = {0};
 	if (cfg.ctrl_caret == CTRL_CARET_SUFFIX) {
-		s = str_append(s, k.key & ~0x80, a);
+		s = str_append(s, k.key & ~CTRL_BIT, a);
 	}
-	if (k.key & 0x80) {
+	if (k.key & CTRL_BIT) {
 		s = str_append(s, '^', a);
 	} else {
 		s = str_append(s, ' ', a);
 	}
 	if (cfg.ctrl_caret == CTRL_CARET_PREFIX) {
-		s = str_append(s, k.key & ~0x80, a);
+		s = str_append(s, k.key & ~CTRL_BIT, a);
 	}
 	s = str_concat(s, cfg.separator, a);
 	return str_concat(s, k.desc, a);
 }
-
-static_assert(RGFW_modControl == 1 << 2, "mod control isnt correct, change keyfunc");
-
-static Menu *menu = 0;
-static hb_font_t *font;
-static Bitmap bitmap;
 
 void blit(RGFW_window *win, WinSize ws)
 {
@@ -138,11 +124,11 @@ Byte char_from_key(RGFW_key key, RGFW_keymod keymod)
 	Byte ch = key;
 	if (keymod & RGFW_modShift) {
 		if ('a' <= ch && ch <= 'z') {
-			ch &= ~0x40;
+			ch &= ~0x40; // equivalent to ch += 'A' - 'a';
 		}
 	}
 	if (keymod & RGFW_modControl) {
-		ch |= 0x80;
+		ch |= CTRL_BIT;
 	}
 	return ch;
 }
@@ -195,6 +181,15 @@ dothething:
 	}
 }
 
+Arena *init(void)
+{
+	Arena *a = &g_arena;
+	g_arena = arena_create(GB(1));
+	init_cfg();
+	bitmap = bitmap_create((WinSize){1980, 1080}, a);
+	return a;
+}
+
 void help(char *argv0)
 {
 	printf("nvim-which-menu for the window manager\n\n"
@@ -214,8 +209,7 @@ void version(void)
 
 int main(int argc, char **argv)
 {
-	struct FT_MemoryRec_ ft_allocator;
-	Arena *arena = setup_allocator(&ft_allocator);
+	Arena *arena = init();
 	ArrayStr args = {0};
 	WinSize ws = {0};
 	int option = 0;
@@ -228,7 +222,6 @@ int main(int argc, char **argv)
 	    {"help", 'h', OPTPARSE_NONE},
 	    {"version", 'v', OPTPARSE_NONE},
 	    {0, 0}};
-	init_cfg();
 	optparse_init(&options, argv);
 	if (setjmp(jmpbuf) == 1) {
 		args = error_message;
@@ -278,11 +271,8 @@ int main(int argc, char **argv)
 		arrstr_append(&args, str_from_keyentry(menu->v[i], arena), arena);
 	}
 drawtime:
-
-	bitmap = bitmap_create((WinSize){1980, 1080}, arena);
-	font = init_font(&ft_allocator);
+	init_font(arena);
 	render(bitmap, args, &ws, font, arena);
-
 	RGFW_setClassName("keymenu");
 	RGFW_window *win = RGFW_createWindow("keymenu", 0, 0, ws.width, ws.height, RGFW_windowNoResize | RGFW_windowTransparent);
 	RGFW_setKeyCallback(keyfunc);
