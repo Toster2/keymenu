@@ -125,16 +125,8 @@ static Menu *menu = 0;
 static hb_font_t *font;
 static Bitmap bitmap;
 
-void redraw(RGFW_window *win, Menu *menu)
+void blit(RGFW_window *win, WinSize ws)
 {
-	Arena *arena = &g_arena;
-	WinSize ws;
-	ArrayStr xs = {0};
-	for (I32 i = 0; i < menu->len; i++) {
-		arrstr_append(&xs, str_from_keyentry(menu->v[i], arena), arena);
-	}
-	render(bitmap, xs, &ws, font, arena);
-	RGFW_window_resize(win, ws.width, ws.height);
 	RGFW_window_center(win);
 	RGFW_surface *surface = RGFW_createSurface(bitmap.data, ws.width, ws.height, RGFW_formatRGBA8);
 	RGFW_window_blitSurface(win, surface);
@@ -157,6 +149,9 @@ Byte char_from_key(RGFW_key key, RGFW_keymod keymod)
 
 void keyfunc(RGFW_window *win, RGFW_key key, RGFW_keymod keymod, RGFW_bool repeat, RGFW_bool pressed)
 {
+	Arena *arena = &g_arena;
+	WinSize ws;
+	ArrayStr xs = {0};
 	int i;
 	if (!pressed || key > 127 || menu == 0) return;
 	Byte ch = char_from_key(key, keymod);
@@ -169,7 +164,7 @@ void keyfunc(RGFW_window *win, RGFW_key key, RGFW_keymod keymod, RGFW_bool repea
 dothething:
 	switch (menu->v[i].tag) {
 	case KEYTAG_RUN: {
-		char *arg3 = make(char, menu->v[i].u.cmd.len + 1, &g_arena);
+		char *arg3 = make(char, menu->v[i].u.cmd.len + 1, arena);
 		char *argv[4] = {"sh", "-c", arg3, 0};
 		memcpy(arg3, menu->v[i].u.cmd.v, menu->v[i].u.cmd.len);
 		arg3[menu->v[i].u.cmd.len] = '\0';
@@ -180,7 +175,12 @@ dothething:
 	} break;
 	case KEYTAG_MENU:
 		menu = &menu->v[i].u.menu;
-		redraw(win, menu);
+		for (I32 i = 0; i < menu->len; i++) {
+			arrstr_append(&xs, str_from_keyentry(menu->v[i], arena), arena);
+		}
+		render(bitmap, xs, &ws, font, arena);
+		RGFW_window_resize(win, ws.width, ws.height);
+		blit(win, ws);
 	}
 }
 
@@ -273,12 +273,10 @@ drawtime:
 	render(bitmap, args, &ws, font, arena);
 
 	RGFW_setClassName("keymenu");
-	RGFW_window *win = RGFW_createWindow("keymenu", 0, 0, ws.width, ws.height, RGFW_windowCenter | RGFW_windowNoResize | RGFW_windowTransparent);
+	RGFW_window *win = RGFW_createWindow("keymenu", 0, 0, ws.width, ws.height, RGFW_windowNoResize | RGFW_windowTransparent);
 	RGFW_setKeyCallback(keyfunc);
 	RGFW_window_setExitKey(win, RGFW_escape);
-	RGFW_surface *surface = RGFW_createSurface(bitmap.data, ws.width, ws.height, RGFW_formatRGBA8);
-	RGFW_window_blitSurface(win, surface);
-	RGFW_surface_free(surface);
+	blit(win, ws);
 	while (!RGFW_window_shouldClose(win)) {
 		RGFW_pollEvents();
 	}
