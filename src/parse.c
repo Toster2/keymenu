@@ -57,13 +57,28 @@ void init_cfg(void)
 
 static ArrayStr error_message = {0};
 
+Str str_copy_cstr_unfold_tabs(char *p, Arena *a)
+{
+	Str s = {0};
+	for (; *p; p++) {
+		if (*p == '\t') {
+			for (int i = 0; i < 4; i++) {
+				s = str_append(s, ' ', a);
+			}
+		} else {
+			s = str_append(s, *p, a);
+		}
+	}
+	return s;
+}
+
 void appendf(ArrayStr *xs, Arena *a, char *fmt, ...)
 {
 	char buf[4096];
 	va_list ap;
 	va_start(ap, fmt);
 	vsnprintf(buf, 4096, fmt, ap);
-	arrstr_append(xs, str_copy_cstr(buf, a), a);
+	arrstr_append(xs, str_copy_cstr_unfold_tabs(buf, a), a);
 	va_end(ap);
 }
 
