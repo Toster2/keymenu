@@ -152,7 +152,6 @@ void keyfunc(RGFW_window *win, RGFW_key key, RGFW_keymod keymod, RGFW_bool repea
 	int i;
 	if (!pressed || key > 127 || menu == 0) return;
 	if (key == RGFW_backSpace) {
-		if (menu->parent == 0) return;
 		set_menu_and_render(menu->parent, win, arena);
 		return;
 	}
@@ -180,7 +179,7 @@ dothething:
 		break;
 	case KEYTAG_UP:
 		// TODO: maybe error when up is on top level menu ?
-		if (menu->parent == 0) break;
+		// if (menu->parent == menu) ...
 		set_menu_and_render(menu->parent, win, arena);
 		break;
 	}

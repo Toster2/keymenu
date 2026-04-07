@@ -409,7 +409,7 @@ Menu *parse_config(Str fname, jmp_buf *jmpbuf, Arena *arena)
 			if (trim(lcut.tail).len) parse_error(&p, "the syntax for declaring menus is menu <description>", "too many arguments to menu");
 			if (lcut.head.len == 0) parse_error(&p, "the syntax for declaring menus is menu <description>", "missing menu description");
 			Menu *n = parse_menu(c.tail, 0, &p, &c.tail);
-			n->parent = 0;
+			n->parent = n;
 			n->desc = lcut.head;
 			n->next = menu;
 			menu = n;
