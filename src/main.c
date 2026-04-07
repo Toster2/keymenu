@@ -124,7 +124,7 @@ Byte char_from_key(RGFW_key key, RGFW_keymod keymod)
 	Byte ch = key;
 	if (keymod & RGFW_modShift) {
 		if ('a' <= ch && ch <= 'z') {
-			ch &= ~0x40; // equivalent to ch += 'A' - 'a';
+			ch += 'A' - 'a';
 		}
 	}
 	if (keymod & RGFW_modControl) {
