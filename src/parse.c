@@ -9,7 +9,8 @@
 typedef U8 Keytag;
 enum {
 	KEYTAG_MENU = 1,
-	KEYTAG_RUN
+	KEYTAG_RUN,
+	KEYTAG_UP
 };
 
 typedef struct Keyentry Keyentry;
@@ -315,8 +316,10 @@ Menu *parse_menu(Str s, I32 indent, Parser *p, Str *therest)
 			k.u.menu = *parse_menu(c.tail, line_indent, p, &c.tail);
 			k.u.menu.desc = desc;
 			k.u.menu.parent = menu;
+		} else if (str_eq(action, S("up"))) {
+			k.tag = KEYTAG_UP;
 		} else {
-			parse_error(p, 0, "expected 'menu' or 'run', got '%.*s'", FMT(action));
+			parse_error(p, 0, "expected 'menu', 'run' or 'up', got '%.*s'", FMT(action));
 		}
 		karr_append(menu, k, p->arena);
 	}
@@ -340,6 +343,8 @@ void p_menu(Menu menu, int n)
 		case KEYTAG_MENU:
 			p_menu(menu.v[i].u.menu, n);
 			break;
+		case KEYTAG_UP:
+			printf("up\n");
 		}
 	}
 }

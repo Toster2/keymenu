@@ -133,22 +133,27 @@ Byte char_from_key(RGFW_key key, RGFW_keymod keymod)
 	return ch;
 }
 
+void set_menu_and_render(Menu *m, RGFW_window *win, Arena *arena)
+{
+	ArrayStr xs = {0};
+	WinSize ws = {0};
+	menu = m;
+	for (I32 i = 0; i < menu->len; i++) {
+		arrstr_append(&xs, str_from_keyentry(menu->v[i], arena), arena);
+	}
+	render(bitmap, xs, &ws, font, arena);
+	RGFW_window_resize(win, ws.width, ws.height);
+	blit(win, ws);
+}
+
 void keyfunc(RGFW_window *win, RGFW_key key, RGFW_keymod keymod, RGFW_bool repeat, RGFW_bool pressed)
 {
 	Arena *arena = &g_arena;
-	WinSize ws;
-	ArrayStr xs = {0};
 	int i;
 	if (!pressed || key > 127 || menu == 0) return;
 	if (key == RGFW_backSpace) {
 		if (menu->parent == 0) return;
-		menu = menu->parent;
-		for (I32 i = 0; i < menu->len; i++) {
-			arrstr_append(&xs, str_from_keyentry(menu->v[i], arena), arena);
-		}
-		render(bitmap, xs, &ws, font, arena);
-		RGFW_window_resize(win, ws.width, ws.height);
-		blit(win, ws);
+		set_menu_and_render(menu->parent, win, arena);
 		return;
 	}
 	Byte ch = char_from_key(key, keymod);
@@ -171,13 +176,13 @@ dothething:
 		_exit(127);
 	} break;
 	case KEYTAG_MENU:
-		menu = &menu->v[i].u.menu;
-		for (I32 i = 0; i < menu->len; i++) {
-			arrstr_append(&xs, str_from_keyentry(menu->v[i], arena), arena);
-		}
-		render(bitmap, xs, &ws, font, arena);
-		RGFW_window_resize(win, ws.width, ws.height);
-		blit(win, ws);
+		set_menu_and_render(&menu->v[i].u.menu, win, arena);
+		break;
+	case KEYTAG_UP:
+		// TODO: maybe error when up is on top level menu ?
+		if (menu->parent == 0) break;
+		set_menu_and_render(menu->parent, win, arena);
+		break;
 	}
 }
 
