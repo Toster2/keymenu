@@ -211,17 +211,21 @@ void version(void)
 	printf("keymenu-0.1\n");
 }
 
+bool gui_errors = true;
+
 int main(int argc, char **argv)
 {
 	Arena *arena = init();
 	ArrayStr args = {0};
 	WinSize ws = {0};
+	bool lflag = false;
 	int option = 0;
 	Str config_fname = {0};
 	jmp_buf jmpbuf = {0};
 	struct optparse options;
 	struct optparse_long longopts[] = {
 	    {"config", 'c', OPTPARSE_REQUIRED},
+	    {"no-gui-errors", 'g', OPTPARSE_NONE},
 	    {"list", 'l', OPTPARSE_NONE},
 	    {"help", 'h', OPTPARSE_NONE},
 	    {"version", 'v', OPTPARSE_NONE},
@@ -229,6 +233,7 @@ int main(int argc, char **argv)
 	optparse_init(&options, argv);
 	if (setjmp(jmpbuf) == 1) {
 		args = error_message;
+		if (!gui_errors) return 1;
 		goto drawtime;
 	}
 
@@ -239,11 +244,11 @@ int main(int argc, char **argv)
 			config_fname.v = str_append(config_fname, '\0', arena).v;
 			break;
 		case 'l':
-			menu = parse_config(config_fname, &jmpbuf, arena);
-			for (; menu != 0; menu = menu->next) {
-				printf("%.*s\n", FMT(menu->desc));
-			}
-			return 0;
+			lflag = true;
+			break;
+		case 'g':
+			gui_errors = false;
+			break;
 		case 'h':
 			help(*argv);
 			return 0;
@@ -254,6 +259,13 @@ int main(int argc, char **argv)
 			fprintf(stderr, "error: %s\n", options.errmsg);
 			return 1;
 		}
+	}
+	if (lflag) {
+		menu = parse_config(config_fname, &jmpbuf, arena);
+		for (; menu != 0; menu = menu->next) {
+			printf("%.*s\n", FMT(menu->desc));
+		}
+		return 0;
 	}
 
 	if (argc < 2) {
